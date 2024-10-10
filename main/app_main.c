@@ -1,3 +1,13 @@
+
+/* MQTT (over TCP) Example
+
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+*/
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -21,48 +31,39 @@
 #include "esp_log.h"
 #include "mqtt_client.h"
 
-#include "driver/gpio.h"
+// 10. add sevensegment_c_connector.h include file
+#include "sevensegment_c_connector.h"
 
-#define GPIO_INPUT_IO_1     23  
-#define LED_INPUT           22  
-#define GPIO_INPUT_PIN_SEL  ((1ULL<<GPIO_INPUT_IO_1))
-#define ESP_INTR_FLAG_DEFAULT 0
+// 11. add number variable and TaskHandle_t
+uint8_t number = 0;
+TaskHandle_t xSevenSegmentHandle = NULL;
+
 
 static const char *TAG = "mqtt_example";
 
-static void log_error_if_nonzero(const char *message, int error_code) {
+
+static void log_error_if_nonzero(const char *message, int error_code)
+{
     if (error_code != 0) {
         ESP_LOGE(TAG, "Last error %s: 0x%x", message, error_code);
     }
 }
 
-static QueueHandle_t gpio_evt_queue = NULL;
-esp_mqtt_client_handle_t mqtt_client;
-
-static void IRAM_ATTR gpio_isr_handler(void* arg) {
-    uint32_t gpio_num = (uint32_t) arg;
-    xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
-}
-
-static void gpio_task_example(void* arg) {
-    char data[10];
-    bool status = 0;
-    uint32_t io_num;
-    for (;;) {
-        if (xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
-            printf("GPIO[%"PRIu32"] intr, val: %d\n", io_num, gpio_get_level(io_num));
-            status = !status;
-            sprintf(data, "%d", status);
-            esp_mqtt_client_publish(mqtt_client, "KMITL/SIET/65030121/topic/BUTTON", data, 0, 0, 0);
-        }
-    }
-}
-
-static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
+/*
+ * @brief Event handler registered to receive MQTT events
+ *
+ *  This function is called by the MQTT client event loop.
+ *
+ * @param handler_args user data registered to the event.
+ * @param base Event base for the handler(always MQTT Base in this example).
+ * @param event_id The id for the received event.
+ * @param event_data The data for the event, esp_mqtt_event_handle_t.
+ */
+static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
+{
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%" PRIi32 "", base, event_id);
     esp_mqtt_event_handle_t event = event_data;
     esp_mqtt_client_handle_t client = event->client;
-    mqtt_client = event->client;
     int msg_id;
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
@@ -73,11 +74,16 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         msg_id = esp_mqtt_client_subscribe(client, "KMITL/SIET/65030121/topic/qos0", 0);
         ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
+        // 12. add subscribe topic
+        msg_id = esp_mqtt_client_subscribe(client, "KMITL/SIET/65030121/topic/7seg", 0);
+        ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
+
+
         msg_id = esp_mqtt_client_subscribe(client, "KMITL/SIET/65030121/topic/qos1", 1);
         ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
-        msg_id = esp_mqtt_client_subscribe(client, "KMITL/SIET/65030121/topic/LED", 1); // Subscribe to the LED topic
-        ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
+        msg_id = esp_mqtt_client_unsubscribe(client, "KMITL/SIET/65030121/topic/qos1");
+        ESP_LOGI(TAG, "sent unsubscribe successful, msg_id=%d", msg_id);
         break;
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
@@ -85,7 +91,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
     case MQTT_EVENT_SUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-        msg_id = esp_mqtt_client_publish(client, "KMITL/SIET/65030121/topic/qos0", "data", 0, 0, 0);
+        msg_id = esp_mqtt_client_publish(client, "/topic/qos0", "data", 0, 0, 0);
         ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
         break;
     case MQTT_EVENT_UNSUBSCRIBED:
@@ -99,16 +105,10 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
         printf("DATA=%.*s\r\n", event->data_len, event->data);
 
-        // Check if the message is for controlling the LED
-        if (strncmp(event->topic, "KMITL/SIET/65030121/topic/LED", event->topic_len) == 0) {
-            printf("Topic matched\r\n" );
-            if (strstr(event->data, "ON") != NULL) {
-                printf("LED ON\r\n" );
-                gpio_set_level(LED_INPUT, 1); // Turn ON LED
-            } else if (strstr(event->data, "OFF") != NULL) {
-                printf("LED OFF\r\n" );
-                gpio_set_level(LED_INPUT, 0); // Turn OFF LED
-            }
+        // 13. add code to get number from mqtt topic
+        if(strstr(event->topic,"KMITL/SIET/65030121/topic/7seg") != NULL)
+        {
+            number  = (event->data[0]-0x30)*10 + (event->data[1]-0x30);
         }
         break;
     case MQTT_EVENT_ERROR:
@@ -118,6 +118,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             log_error_if_nonzero("reported from tls stack", event->error_handle->esp_tls_stack_err);
             log_error_if_nonzero("captured as transport's socket errno",  event->error_handle->esp_transport_sock_errno);
             ESP_LOGI(TAG, "Last errno string (%s)", strerror(event->error_handle->esp_transport_sock_errno));
+
         }
         break;
     default:
@@ -126,13 +127,14 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     }
 }
 
-static void mqtt_app_start(void) {
+static void mqtt_app_start(void)
+{
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = CONFIG_BROKER_URL,
     };
-
 #if CONFIG_BROKER_URL_FROM_STDIN
     char line[128];
+
     if (strcmp(mqtt_cfg.broker.address.uri, "FROM_STDIN") == 0) {
         int count = 0;
         printf("Please enter url of mqtt broker\n");
@@ -156,11 +158,32 @@ static void mqtt_app_start(void) {
 #endif /* CONFIG_BROKER_URL_FROM_STDIN */
 
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+    /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     esp_mqtt_client_start(client);
 }
 
-void app_main(void) {
+// 14. add  scan seven segment task
+
+void vTaskScanSevenSegment(void *Parameters)
+{
+    while (1)
+    {
+        s1_displayNumber(number / 10);
+        s1_displayOn();
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+        s1_displayOff();
+
+        s2_displayNumber(number % 10);
+        s2_displayOn();
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+        s2_displayOff();
+    }
+}
+
+
+void app_main(void)
+{
     ESP_LOGI(TAG, "[APP] Startup..");
     ESP_LOGI(TAG, "[APP] Free memory: %" PRIu32 " bytes", esp_get_free_heap_size());
     ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
@@ -173,31 +196,18 @@ void app_main(void) {
     esp_log_level_set("transport", ESP_LOG_VERBOSE);
     esp_log_level_set("outbox", ESP_LOG_VERBOSE);
 
-    gpio_config_t io_conf = {};
-    io_conf.intr_type = GPIO_INTR_POSEDGE;
-    io_conf.pin_bit_mask = GPIO_INPUT_PIN_SEL;
-    io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.pull_up_en = 1;
-    gpio_config(&io_conf);
-
-    gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
-    xTaskCreate(gpio_task_example, "gpio_task_example", 2048, NULL, 10, NULL);
-    gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
-    gpio_isr_handler_add(GPIO_INPUT_IO_1, gpio_isr_handler, (void*) GPIO_INPUT_IO_1);
-
-  
-    // Configure LED GPIO
-    // gpio_config_t led_conf = {};
-    // led_conf.intr_type = GPIO_INTR_DISABLE;
-    // led_conf.mode = GPIO_MODE_OUTPUT;
-    // led_conf.pin_bit_mask = (1ULL << LED_INPUT);
-    // led_conf.pull_down_en = 0;
-    // led_conf.pull_up_en = 0;
-    // gpio_config(&led_conf);
-  gpio_set_direction(LED_INPUT, GPIO_MODE_OUTPUT);
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
+     * Read "Establishing Wi-Fi or Ethernet Connection" section in
+     * examples/protocols/README.md for more information about this function.
+     */
     ESP_ERROR_CHECK(example_connect());
+
+    // 15. create and run seven segmant task
+    xTaskCreate(vTaskScanSevenSegment, "Seven Seg", 
+        1024, NULL, 10, &xSevenSegmentHandle);
     mqtt_app_start();
 }

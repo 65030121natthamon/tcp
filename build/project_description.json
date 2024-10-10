@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "mqtt_tcp",
-    "project_version":    "5a6239c-dirty",
+    "project_version":    "98672f1-dirty",
     "project_path":       "C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp",
     "idf_path":           "C:/Users/Lenovo/esp/v5.2.2/esp-idf",
     "build_dir":          "C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/build",
@@ -835,7 +835,7 @@
             "managed_reqs": [],
             "managed_priv_reqs": [ "LED", "SEVENSEGMENT", "protocol_examples_common" ],
             "file": "C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/build/esp-idf/main/libmain.a",
-            "sources": [ "C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/main/app_main.c" ],
+            "sources": [ "C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/main/sevensegment_c_connector.cpp", "C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/main/led_c_connector.cpp", "C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/main/app_main.c" ],
             "include_dirs": [ "." ]
         },
         "mbedtls": {
