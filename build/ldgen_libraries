@@ -61,5 +61,7 @@ C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/build/esp-idf/nvs_sec_provider/li
 C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/build/esp-idf/perfmon/libperfmon.a
 C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/build/esp-idf/spiffs/libspiffs.a
 C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/build/esp-idf/wifi_provisioning/libwifi_provisioning.a
+C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/build/esp-idf/LED/libLED.a
+C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/build/esp-idf/SEVENSEGMENT/libSEVENSEGMENT.a
 C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/build/esp-idf/protocol_examples_common/libprotocol_examples_common.a
 C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/build/esp-idf/main/libmain.a

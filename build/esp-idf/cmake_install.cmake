@@ -414,6 +414,16 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
+  include("C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/build/esp-idf/LED/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
+  include("C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/build/esp-idf/SEVENSEGMENT/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
   include("C:/GitHubRepos/_ENGEDU/Special_Topics_2567/tcp/build/esp-idf/protocol_examples_common/cmake_install.cmake")
 endif()
 
